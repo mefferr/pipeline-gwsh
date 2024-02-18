@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main  
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      
+    - name: Test
+      run: ./gradlew test
+      
+    - name: Build
+      run: ./gradlew build
+
+    - name: OWASP container
+      run: |
+        docker run --name zap -u zap -p 8080:8080 -d owasp/zap2docker-stable zap-webswing.sh &
+
+    - name: Wait for OWASP
+      run: sleep 30
+      
+    - name: Run scan
+      run: |
+        docker exec zap zap-baseline.py -t http://localhost:8080/myapp -J zap-report.json
+        docker cp zap:/zap/zap-report.json ./
+      continue-on-error: true
